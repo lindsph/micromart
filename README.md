@@ -2,27 +2,23 @@
 
 Product Engineer take-home: a responsive operator catalog for people running autonomous Smart Stores.
 
-## Setup
+The app is a phone-first catalog inside a device-preview shell. Review the catalog, not the chrome around the frame.
 
-Requires Node 20+.
+## Run
+
+Requires **Node 20.19+** (Vite 8). Node 22+ is fine.
 
 ```bash
+nvm use 20
 npm install
 npm run dev
 ```
 
-## How to review
+Opens at [http://localhost:5173](http://localhost:5173). In `npm run dev`, Vite proxies `/api` to the public take-home API:
 
-```bash
-nvm use 20
-npm run dev
-```
+`https://micromart-frontend-takehome.up.railway.app`
 
-The tab bar starts on **iPhone SE**. Try search, sort, and a category. Tap a row to inspect. Switch to **iPad Mini** for the tablet card.
-
-There is no Draft chip — the API cannot filter by status, so a chip would only slice the current page. To see the planted draft (missing photo, incomplete fields), search **Draft Test Product**.
-
-## Tests
+Production builds call that origin directly.
 
 ```bash
 npm test          # Vitest, one run
@@ -30,18 +26,22 @@ npm run test:watch
 npm run check     # typecheck + tests
 ```
 
-Tests sit next to the code they cover (`*.test.ts`). Update them in the same change as the product or API behavior. The suite is the lock on search, category, brand, sort, cursor pagination, inspect refresh, image allowlisting, 429 cool-down, and the categories banner. Shared fixtures live in `src/test/factories.ts`.
+## Review path
 
-The app reads from the public take-home API:
+The tab bar starts on **iPhone SE**. Stay there first.
 
-`https://micromart-frontend-takehome.up.railway.app`
+1. **Find.** Type in search (name, brand, SKU, or tags). Try **Sort** (A–Z, price, **Stock · lowest first**, newest) and a category chip. Open **Brand** and pick Coca-Cola or Celsius — that hits the API `brand` param, not a client slice. **All brands**, or a second tap on the selected brand, clears it. Same for a selected category.
+2. **Scroll.** The Catalog / Products / count heading leaves. The stuck chrome collapses to one row: **Products** on the left, search on the right. The chip rail (sort, brand, then categories) still scrolls with the list. Near the bottom, the next page of 20 loads with no Load more button and no “Loading more…” line.
+3. **Inspect.** Tap a row. Phone inspect is a full-frame sheet. Glance is pack, name, brand, stock or draft, price, and size. Then SKU, cost, margin, category, tags, and description. Close restores focus to the row.
+4. **Planted draft.** There is no Draft chip on the rail — the API cannot filter by status, so a chip would only slice the current page. Search **Draft Test Product**. Expect a missing pack photo, a Draft chip on the row, and no stock column.
+5. **Tablet.** Switch to **iPad Mini**. The list is a real tablet layout (status dot on the row). Inspect is a top-aligned card, not a sheet. **iPad Pro 13** is the larger tablet. **iPhone 16** and **16 Pro Max** are taller phones of the same layout.
 
-In `npm run dev`, Vite proxies `/api` to that origin. Production builds call the origin directly.
+There is no Desktop tab. Device tabs are the reviewer, not a third product.
 
 ## Assumptions
 
 - This is an operator catalog, not a consumer shop. The prompt’s desktop table does not work on a phone. The job is to redesign the experience, not shrink the table.
-- Phone gets the most care. Tablet is a real second layout (iPad Mini and iPad Pro 13). There is no Desktop tab and no desktop catalog layout — `CatalogScreen` is `phone` or `tablet`. The chrome around the device frame is the reviewer, not a third product.
+- Phone gets the most care. Tablet is a real second layout. `CatalogScreen` is `phone` or `tablet` only.
 - Shopper trust constrains data quality (image, price, status). Shoppers never use this screen, but AI checkout and shelf tags depend on the catalog being honest.
 - Stock on the row is for a single machine — the one this operator has, or has already selected. The take-home API has one `stock` number and no machine or store field, so we do not invent a per-door split. Out / low / “12 in stock” mean this unit.
 
@@ -51,41 +51,27 @@ In `npm run dev`, Vite proxies `/api` to that origin. Production builds call the
 
 An operator is not browsing 20 snacks. They are jumping across drinks, energy, zero sugar, frozen, personal care, and whatever that location actually stocks. On a phone, search + filter + sort are the product. The list is just what those tools return. If those are slow or sloppy, the app fails in a store.
 
-Search hits the API `search` param. The field placeholder says name, brand, SKU, or tags — we stay inside that copy. We do not download the full catalog and filter it in the browser.
+Search hits the API `search` param after 300ms of typing. Clear (X or Escape) hits immediately. The field placeholder says name, brand, SKU, or tags — we stay inside that copy. We do not download the full catalog and filter it in the browser.
 
 The API has no stock or status query params — `stock=0` and `status=draft` are ignored. Out / Low / Draft chips would only slice the current page and lie about empty. Attention is **Stock · lowest first**, which the API can do. Out / low / draft still show on the row when that SKU is on screen.
 
-A second tap on a selected category clears it. No category selected is the empty state.
+Brand is a short menu next to Sort: Coca-Cola, Gatorade, Fairlife, Celsius, Alani Nu, Cheetos, Starbucks. We do not dump ~60 brand chips on the rail. Tags and the full brand list are later.
 
-Brand is a short menu next to Sort: Coca-Cola, Gatorade, Fairlife, Celsius, Alani Nu, Cheetos, Starbucks. It sends the API `brand` param, not a client slice. **All brands** clears it. We do not dump ~60 brand chips on the rail. Tags and the full brand list are later.
-
-The list pages at 20. Scrolling near the bottom loads the next page before they hit the wall. If that page still leaves the end on screen, we load the next one. The next request sends the API `nextCursor`, not `page + 1`. There is no Load more button, no “Loading more…” line, and no skeleton flash at the end — the next rows just appear. An empty result does not fetch another page. A failed page pauses the sentinel so we do not hammer.
+The list pages at 20. Scrolling near the bottom loads the next page before they hit the wall. If that page still leaves the end on screen, we load the next one. The next request prefers the API `nextCursor`; if the payload has none, it falls back to `page + 1`. An empty result does not fetch another page. A failed page pauses the sentinel so we do not hammer.
 
 ### One-row bar when scrolled
 
-At rest: Catalog + Products + the count, then search. On scroll that heading leaves and the stuck chrome collapses to one row — **Products** on the left, search on the right. The chip rail (sort, brand, then categories) still scrolls with the list.
+At rest: Catalog + Products + the count, then search. On scroll that heading leaves and the stuck chrome collapses to one row — **Products** on the left, search on the right.
 
-The consideration: changing search, filter, brand, or sort already starts a new list at page 1 and scrolls that pane to the top. After they type or reorder, the full heading is waiting there again. Pinning Catalog / Products / count while they browse does not pay — it is a 135px slab on SE (~21% of the pane) and collapsing it only buys about one extra row. The question was whether that block should still look like a page header mid-list.
+Changing search, filter, brand, or sort already starts a new list at page 1 and scrolls that pane to the top. After they type or reorder, the full heading is waiting there again. Pinning Catalog / Products / count while they browse does not pay — it is a 135px slab on SE (~21% of the pane) and collapsing it only buys about one extra row.
 
 Search is the one control that is still useful halfway down: start a new find without climbing back, then get sent to the top of that result. Sort and chips are weaker as sticky. To reorder they have to reach the rail anyway, and tapping it also sends them to the top.
 
 Tried first: title rolls away, search only. That was the smallest useful sticky, but mid-list it was not obvious what screen you were on. The one-row bar keeps a Products label beside find without bringing the slab back. Also tried and not taken: keep the full slab pinned; slim title + search always pinned; pin search + chips; Out / Low / Draft chips against an API that cannot filter them; a 61-brand chip rail.
 
-### Stretch, not v1
-
-Barcode scan: with more time, if the catalog had a UPC field. That shows we understand the in-store job and did not fake a demo against missing data. That is stronger than a camera button that cannot work.
-
-Voice-to-search sits in the same bucket: another input into the same search box.
-
-That is also Build to last: excel at find-and-trust before adding camera and mic.
-
 ### List row
 
-On the row: name, brand, size, price, stock. Category stays quiet. Thumbs are 64px on a white tile so the pack still reads after padding. Status dot is tablet-only; phone drops it so the name can use that space. Status still lives in the row copy (Out / Low / Draft).
-
-### Device review
-
-A tab bar, one frame at a time: iPhone SE, iPhone 16, iPhone 16 Pro Max, iPad Mini, iPad Pro 13. Phone inspect is a full-frame sheet. iPad inspect is a top-aligned card. There is no Desktop tab.
+On the row: name, brand, price, stock. Category and size stay on the quiet line (`Drink · 12 oz`). Out / Low / Draft replace that line. Thumbs are 64px on a white tile so the pack still reads after padding. Status dot is tablet-only; phone drops it so the name can use that space. Draft hides the stock column.
 
 ### Inspect sheet
 
@@ -93,28 +79,38 @@ Tap a row to inspect. Glance is the pack shot, name, brand, stock or draft, pric
 
 The sheet opens on the list row so the pack is instant. Then we refetch `/products/:id`. Stock and price change while they restock; a 30s-old list page is not the SKU in the machine. That fetch does not retry — fail fast, keep the snapshot, say “Could not refresh. This is the list snapshot.” We do not hide the pack behind a spinner.
 
-### Performance and security (from the start)
+### Stretch, not v1
 
-This is an operator tool used on a phone in a store. Slow search/filter fails the product. A sloppy client also fails shopper trust if we render bad catalog data.
+Barcode scan and voice-to-search sit in the same bucket: extra inputs into find, only if the data can support them. With more time, barcode if the catalog had a UPC field — that shows we understand the in-store job and did not fake a demo against missing data. Voice would type into the same search box. Excel at find-and-trust before adding camera and mic.
 
-Performance
+## How it is built
+
+Tests sit next to the code they cover (`*.test.ts` / `*.test.tsx`). Update them in the same change as the product or API behavior. Shared fixtures live in `src/test/factories.ts`. The suite is the lock on search, category, brand, sort, cursor pagination, infinite scroll, compact find, inspect refresh, image allowlisting, 429 cool-down, last-good data, and the categories banner.
+
+### Performance
+
+This is an operator tool used on a phone in a store. Slow search/filter fails the product.
+
 - Search, category, brand, sort, and pagination go to the API. We do not download the catalog and filter it in the browser.
-- List requests are capped at the API max (100). React Query caches for 30s, cancels in-flight requests on unmount, and does not refetch every time the tab refocuses.
-- Transient failures fail fast (3.5s) and retry three times at 200ms / 400ms / 800ms. 4xx is not retried. 429 waits on Retry-After (2s if the header is missing) instead of hammering. Infinite scroll pauses while that cools down and the banner says the catalog is busy. A failed categories request uses the same banner — chips disappear, but we say so and the list stays. Coming back online always refetches. Last good data stays on screen; we never blank the list because a refresh failed.
+- List requests are capped at the API max (100). We ask for 20. React Query caches for 30s, cancels in-flight requests on unmount, and does not refetch every time the tab refocuses.
+- Transient failures fail fast (3.5s) and retry three times at 200ms / 400ms / 800ms. 4xx is not retried. 429 waits on Retry-After (2s if the header is missing) instead of hammering. Infinite scroll pauses while that cools down and the banner says the catalog is busy. A failed categories request uses the same banner component — chips disappear, copy says search and the list still work. Coming back online always refetches. Last good data stays on screen; we never blank the list because a refresh failed.
 - Thumbnails use Cloudinary resize (`q_auto,f_auto`) so a 64px row does not download a full packaging photo. Images are lazy-loaded with width/height reserved to avoid layout shift.
-- Missing photos use a category atmosphere (sage drinks, kraft snacks, ice for frozen) and a pack mark from category + tags — bottle, can, chip bag, candy, bar, carton, scoop, or pump. Micromart checkout depends on packaging images; an empty plate that still reads as that SKU type is more honest than a dead square.
+- Missing photos use a category atmosphere (sage drinks, kraft snacks, ice for frozen, and the same idea for cold and personal care) and a pack mark from category + tags — bottle, can, chip bag, candy, bar, carton, scoop, or pump. Micromart checkout depends on packaging images; an empty plate that still reads as that SKU type is more honest than a dead square.
 - System fonts only. No Google Fonts request on first paint.
 
-Security
+### Security
+
+A sloppy client also fails shopper trust if we render bad catalog data.
+
 - No API keys in the client. The take-home API is public; we send no cookies (`credentials: omit`).
 - Requests are allowlisted to `/api/v1/*` against the known origin, with a 3.5s timeout (not 10s).
 - Query values are encoded with `URLSearchParams` so search text cannot break the URL.
 - `imageUrl` is only rendered if it is `https` on `res.cloudinary.com`. Anything else (empty, `javascript:`, unknown host) is a fallback tile. Any Cloudinary cloud on that host is allowed.
-- Responses are parsed before render so a malformed payload cannot crash the list. Missing price, cost, or stock stay empty (`—`). We do not invent `$0.00`, out of stock, or `finalized`. A product with only an `id` is still parsed; the row shows Untitled and dashes, not a fake priced SKU.
+- Responses are parsed before render so a malformed payload cannot crash the list. Missing price, cost, or stock stay empty (`—`). We do not invent `$0.00`, out of stock, or `finalized`. Explicit zeros from the API stay `$0.00` / 0. A product with only an `id` is still parsed; the row shows Untitled and dashes, not a fake priced SKU.
 - A categories payload that is not an array is an error, not an empty chip rail.
 - React handles text escaping. We do not use `dangerouslySetInnerHTML`.
 - Referrer is stripped in HTML (`<meta name="referrer" content="no-referrer">`). `X-Frame-Options: DENY` and `X-Content-Type-Options: nosniff` are set on the Vite dev and preview servers. A static host will not send those headers.
-- Unexpected UI failures are caught by an error boundary (“Refresh to try again”) instead of a blank screen.
+- Unexpected UI failures are caught by an error boundary (“Something went wrong loading this view. Refresh to try again”) instead of a blank screen.
 
 ## AI usage
 

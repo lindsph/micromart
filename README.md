@@ -35,13 +35,14 @@ The tab bar starts on **iPhone SE**. Stay there first.
 3. **Inspect.** Tap a row. Phone inspect is a full-frame sheet. Glance is pack, name, brand, stock or draft, price, and size. Then SKU, cost, margin, category, tags, and description. Close restores focus to the row.
 4. **Planted draft.** There is no Draft chip on the rail — the API cannot filter by status, so a chip would only slice the current page. Search **Draft Test Product**. Expect a missing pack photo, a Draft chip on the row, and no stock column.
 5. **Tablet.** Switch to **iPad Mini**. The list is a real tablet layout (status dot on the row). Inspect is a top-aligned card, not a sheet. **iPad Pro 13** is the larger tablet. **iPhone 16** and **16 Pro Max** are taller phones of the same layout.
+6. **Desktop.** Switch to **Desktop**. This is the wide catalog, not a laptop bezel and not their screenshot table. Rows align Name, SKU, category, stock, price, and cost. Inspect is a side panel. Escape closes it.
 
-There is no Desktop tab. Device tabs are the reviewer, not a third product.
+Device tabs are the reviewer. Phone, tablet, and desktop are three layouts of the same catalog.
 
 ## Assumptions
 
 - This is an operator catalog, not a consumer shop. The prompt’s desktop table does not work on a phone. The job is to redesign the experience, not shrink the table.
-- Phone gets the most care. Tablet is a real second layout. `CatalogScreen` is `phone` or `tablet` only.
+- Phone gets the most care. Tablet is a real second layout. Desktop is a wide operator list with a side inspect — we did not shrink or recreate their table. `CatalogScreen` is `phone`, `tablet`, or `desktop`.
 - Shopper trust constrains data quality (image, price, status). Shoppers never use this screen, but AI checkout and shelf tags depend on the catalog being honest.
 - Stock on the row is for a single machine — the one this operator has, or has already selected. The take-home API has one `stock` number and no machine or store field, so we do not invent a per-door split. Out / low / “12 in stock” mean this unit.
 
@@ -79,13 +80,15 @@ Tap a row to inspect. Glance is the pack shot, name, brand, stock or draft, pric
 
 The sheet opens on the list row so the pack is instant. Then we refetch `/products/:id`. Stock and price change while they restock; a 30s-old list page is not the SKU in the machine. That fetch does not retry — fail fast, keep the snapshot, say “Could not refresh. This is the list snapshot.” We do not hide the pack behind a spinner.
 
+On desktop, inspect is a side panel next to the list. SKU and cost move onto the row so the panel is for margin, tags, and description — not a second copy of the table.
+
 ### Stretch, not v1
 
 Barcode scan and voice-to-search sit in the same bucket: extra inputs into find, only if the data can support them. With more time, barcode if the catalog had a UPC field — that shows we understand the in-store job and did not fake a demo against missing data. Voice would type into the same search box. Excel at find-and-trust before adding camera and mic.
 
 ## How it is built
 
-Tests sit next to the code they cover (`*.test.ts` / `*.test.tsx`). Update them in the same change as the product or API behavior. Shared fixtures live in `src/test/factories.ts`. The suite is the lock on search, category, brand, sort, cursor pagination, infinite scroll, compact find, inspect refresh, image allowlisting, 429 cool-down, last-good data, and the categories banner.
+Tests sit next to the code they cover (`*.test.ts` / `*.test.tsx`). Update them in the same change as the product or API behavior. Shared fixtures live in `src/test/factories.ts`. The suite is the lock on search, category, brand, sort, cursor pagination, infinite scroll, compact find, inspect refresh, the desktop list + side panel, image allowlisting, 429 cool-down, last-good data, `/health`, and the categories banner.
 
 ### Performance
 
@@ -93,7 +96,7 @@ This is an operator tool used on a phone in a store. Slow search/filter fails th
 
 - Search, category, brand, sort, and pagination go to the API. We do not download the catalog and filter it in the browser.
 - List requests are capped at the API max (100). We ask for 20. React Query caches for 30s, cancels in-flight requests on unmount, and does not refetch every time the tab refocuses.
-- Transient failures fail fast (3.5s) and retry three times at 200ms / 400ms / 800ms. 4xx is not retried. 429 waits on Retry-After (2s if the header is missing) instead of hammering. Infinite scroll pauses while that cools down and the banner says the catalog is busy. A failed categories request uses the same banner component — chips disappear, copy says search and the list still work. Coming back online always refetches. Last good data stays on screen; we never blank the list because a refresh failed.
+- Transient failures fail fast (3.5s) and retry three times at 200ms / 400ms / 800ms. 4xx is not retried. 429 waits on Retry-After (2s if the header is missing) instead of hammering. Infinite scroll pauses while that cools down and the banner says the catalog is busy. A failed categories request uses the same banner component — chips disappear, copy says search and the list still work. `GET /health` is a liveness check, not a green badge. When health and the catalog both fail, the banner says the take-home API is unreachable. If the list still works, a health blip stays quiet. Coming back online always refetches. Last good data stays on screen; we never blank the list because a refresh failed.
 - Thumbnails use Cloudinary resize (`q_auto,f_auto`) so a 64px row does not download a full packaging photo. Images are lazy-loaded with width/height reserved to avoid layout shift.
 - Missing photos use a category atmosphere (sage drinks, kraft snacks, ice for frozen, and the same idea for cold and personal care) and a pack mark from category + tags — bottle, can, chip bag, candy, bar, carton, scoop, or pump. Micromart checkout depends on packaging images; an empty plate that still reads as that SKU type is more honest than a dead square.
 - System fonts only. No Google Fonts request on first paint.
@@ -103,7 +106,7 @@ This is an operator tool used on a phone in a store. Slow search/filter fails th
 A sloppy client also fails shopper trust if we render bad catalog data.
 
 - No API keys in the client. The take-home API is public; we send no cookies (`credentials: omit`).
-- Requests are allowlisted to `/api/v1/*` against the known origin, with a 3.5s timeout (not 10s).
+- Requests are allowlisted to `/api/v1/*` and `GET /health` against the known origin, with a 3.5s timeout (not 10s).
 - Query values are encoded with `URLSearchParams` so search text cannot break the URL.
 - `imageUrl` is only rendered if it is `https` on `res.cloudinary.com`. Anything else (empty, `javascript:`, unknown host) is a fallback tile. Any Cloudinary cloud on that host is allowed.
 - Responses are parsed before render so a malformed payload cannot crash the list. Missing price, cost, or stock stay empty (`—`). We do not invent `$0.00`, out of stock, or `finalized`. Explicit zeros from the API stay `$0.00` / 0. A product with only an `id` is still parsed; the row shows Untitled and dashes, not a fake priced SKU.
@@ -114,7 +117,7 @@ A sloppy client also fails shopper trust if we render bad catalog data.
 
 ## AI usage
 
-Cursor (Grok 4.6) was used as a thought partner for product framing, decision logging, and implementation — including inspect refresh, the short Brand menu, 429 cool-down, and the categories banner. Decisions and tradeoffs were made by the candidate. Suggestions that did not ship are in the stretch and more-time sections (barcode, voice, Out / Low / Draft chips, shareable URL, and the rest of that list).
+Cursor (Grok 4.6) was used as a thought partner for product framing, decision logging, and implementation — including inspect refresh, the short Brand menu, 429 cool-down, the categories banner, the desktop list + side panel, and using `/health` only to name an unreachable API. Decisions and tradeoffs were made by the candidate. Suggestions that did not ship are in the stretch and more-time sections (barcode, voice, Out / Low / Draft chips, shareable URL, and the rest of that list).
 
 ## What we would improve with more time
 

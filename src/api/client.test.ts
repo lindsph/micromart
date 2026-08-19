@@ -8,11 +8,24 @@ afterEach(() => {
 });
 
 describe("apiGet", () => {
-  it("refuses paths outside /api/v1/", async () => {
+  it("refuses paths outside /api/v1/ and /health", async () => {
     await expect(apiGet("/evil")).rejects.toMatchObject({
       message: "Refusing to request an unexpected path",
       retryable: false,
     });
+  });
+
+  it("allows GET /health", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: "ok" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(apiGet("/health")).resolves.toEqual({ status: "ok" });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/health",
+      expect.objectContaining({ method: "GET", credentials: "omit" }),
+    );
   });
 
   it("sends a cookie-less GET and returns JSON", async () => {

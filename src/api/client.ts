@@ -2,16 +2,21 @@ import { ApiError, parseRetryAfterMs } from "./errors";
 
 const API_ORIGIN = "https://micromart-frontend-takehome.up.railway.app";
 const ALLOWED_PREFIX = "/api/v1/";
+const HEALTH_PATH = "/health";
 /** Fail fast so a hung request can retry instead of sitting for 10s. */
 const REQUEST_TIMEOUT_MS = 3_500;
 
 export const API_BASE = import.meta.env.DEV ? "" : API_ORIGIN;
 
+function isAllowedPath(path: string): boolean {
+  return path === HEALTH_PATH || path.startsWith(ALLOWED_PREFIX);
+}
+
 export async function apiGet<T>(
   path: string,
   signal?: AbortSignal,
 ): Promise<T> {
-  if (!path.startsWith(ALLOWED_PREFIX)) {
+  if (!isAllowedPath(path)) {
     throw new ApiError("Refusing to request an unexpected path", undefined, false);
   }
 

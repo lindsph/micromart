@@ -229,6 +229,41 @@ describe("CatalogRow", () => {
     expect(screen.queryByTestId("status-dot")).toBeNull();
   });
 
+  it("surfaces SKU and cost on the desktop row, without a status dot", () => {
+    render(
+      <CatalogRow
+        product={makeProduct({ name: "Coke Zero", sku: "CZ-12", cost: 0.6 })}
+        imageSize={64}
+        imageTreatment="white-tile"
+        layout="desktop"
+        onOpen={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("CZ-12")).toBeInTheDocument();
+    expect(screen.getByText("$0.60")).toBeInTheDocument();
+    expect(screen.queryByTestId("status-dot")).toBeNull();
+    expect(screen.queryByText("SKU")).toBeNull();
+    expect(screen.queryByText("Cost")).toBeNull();
+    expect(screen.queryByText("Margin")).toBeNull();
+  });
+
+  it("marks the selected desktop row", () => {
+    render(
+      <CatalogRow
+        product={makeProduct({ name: "Coke Zero" })}
+        imageSize={64}
+        imageTreatment="white-tile"
+        layout="desktop"
+        selected
+        onOpen={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /Coke Zero/ })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+  });
+
   it("keeps the status dot on tablet", () => {
     render(
       <CatalogRow

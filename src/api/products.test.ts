@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "./errors";
-import { fetchCategories, fetchProduct, fetchProductList } from "./products";
+import { fetchCategories, fetchHealth, fetchProduct, fetchProductList } from "./products";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -30,6 +30,21 @@ describe("fetchProductList", () => {
     expect(list.data[0]?.name).toBe("Coke Zero");
     expect(list.total).toBe(9);
     expect(list.nextCursor).toBe("next");
+  });
+});
+
+describe("fetchHealth", () => {
+  it("accepts { status: ok }", async () => {
+    jsonOk({ status: "ok" });
+    await expect(fetchHealth()).resolves.toEqual({ status: "ok" });
+  });
+
+  it("rejects any other payload", async () => {
+    jsonOk({ status: "down" });
+    await expect(fetchHealth()).rejects.toMatchObject({
+      message: "Health response was not valid",
+      retryable: false,
+    });
   });
 });
 

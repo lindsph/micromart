@@ -12,14 +12,20 @@ import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "re
 import type { Product } from "../api/types";
 import { type SortChoice } from "../lib/catalogFilters";
 import type { HeadingStyle, ImageTreatment } from "../review/chrome";
-import { FIND_BAR_SHADOW, LOAD_MORE_ROOT_MARGIN, SORT_SPLIT_COLOR } from "../review/locks";
-import { CatalogRow, CatalogRowSkeleton } from "./CatalogRow";
+import {
+  DESKTOP_ROW_GRID,
+  FIND_BAR_SHADOW,
+  LOAD_MORE_ROOT_MARGIN,
+  SORT_SPLIT_COLOR,
+} from "../review/locks";
+import { CatalogRow, CatalogRowSkeleton, type CatalogLayout } from "./CatalogRow";
 import { CatalogSearch } from "./CatalogSearch";
 
 export type { SortChoice };
 
 export type CatalogScreenProps = {
-  layout: "phone" | "tablet";
+  layout: CatalogLayout;
+  selectedId?: number | null;
   search: string;
   onSearchChange: (value: string) => void;
   onPick: (product: Product) => void;
@@ -60,6 +66,7 @@ const SORT_OPTIONS: { id: SortChoice; label: string; short: string }[] = [
 
 export function CatalogScreen({
   layout,
+  selectedId = null,
   search,
   onSearchChange,
   onPick,
@@ -88,7 +95,7 @@ export function CatalogScreen({
   showSkeletons = false,
   isRefreshing = false,
 }: CatalogScreenProps) {
-  const tablet = layout === "tablet";
+  const wide = layout !== "phone";
   const listRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -202,7 +209,7 @@ export function CatalogScreen({
     <Box
       data-catalog-screen
       sx={{
-        px: tablet ? 2.5 : 1.75,
+        px: wide ? 2.5 : 1.75,
         height: "100%",
         display: "flex",
         flexDirection: "column",
@@ -218,7 +225,7 @@ export function CatalogScreen({
           overflow: "auto",
           overflowX: "hidden",
           overscrollBehavior: "contain",
-          pb: tablet ? 2.5 : 1.75,
+          pb: wide ? 2.5 : 1.75,
         }}
       >
         <Box
@@ -227,7 +234,7 @@ export function CatalogScreen({
           sx={{ bgcolor: "background.default" }}
         >
           <CatalogHeading
-            tablet={tablet}
+            roomy={wide}
             style={headingStyle}
             countLine={shownCount.current}
           />
@@ -235,13 +242,13 @@ export function CatalogScreen({
 
         <StickyFindBar
           compact={compactFind}
-          inset={tablet ? 2.5 : 1.75}
+          inset={wide ? 2.5 : 1.75}
           search={search}
           onSearchChange={onSearchChange}
         />
 
         <Box sx={{ mb: 1.5, pt: 1.25 }}>
-          <ChipRail tablet={tablet}>
+          <ChipRail wrap={wide}>
             <Chip
               clickable
               size="small"
@@ -403,6 +410,7 @@ export function CatalogScreen({
               transition: "opacity 120ms linear",
             }}
           >
+            {layout === "desktop" ? <DesktopColumnHeader /> : null}
             {rows.map((product) => (
               <CatalogRow
                 key={product.id}
@@ -410,6 +418,7 @@ export function CatalogScreen({
                 imageSize={imageSize}
                 imageTreatment={imageTreatment}
                 layout={layout}
+                selected={selectedId === product.id}
                 onOpen={onPick}
               />
             ))}
@@ -487,15 +496,15 @@ export function StickyFindBar({
 }
 
 function CatalogHeading({
-  tablet,
+  roomy,
   style,
   countLine,
 }: {
-  tablet: boolean;
+  roomy: boolean;
   style: HeadingStyle;
   countLine: string;
 }) {
-  const top = tablet ? 2 : 1.75;
+  const top = roomy ? 2 : 1.75;
 
   if (style === "quiet") {
     return (
@@ -505,7 +514,7 @@ function CatalogHeading({
           m: 0,
           mb: 1.75,
           pt: top,
-          fontSize: tablet ? 18 : 15,
+          fontSize: roomy ? 18 : 15,
           fontWeight: 650,
           letterSpacing: "-0.015em",
           lineHeight: 1.3,
@@ -532,7 +541,7 @@ function CatalogHeading({
           component="h1"
           sx={{
             m: 0,
-            fontSize: tablet ? 22 : 17,
+            fontSize: roomy ? 22 : 17,
             fontWeight: 650,
             letterSpacing: "-0.02em",
             lineHeight: 1.2,
@@ -540,7 +549,7 @@ function CatalogHeading({
         >
           Products
         </Box>
-        <Typography color="text.secondary" sx={{ fontSize: tablet ? 14 : 12, minHeight: 20 }} noWrap>
+        <Typography color="text.secondary" sx={{ fontSize: roomy ? 14 : 12, minHeight: 20 }} noWrap>
           {countLine}
         </Typography>
       </Stack>
@@ -567,7 +576,7 @@ function CatalogHeading({
         sx={{
           m: 0,
           fontSize:
-            style === "page" ? (tablet ? 26 : 20) : tablet ? 22 : 17,
+            style === "page" ? (roomy ? 26 : 20) : roomy ? 22 : 17,
           fontWeight: style === "page" ? 700 : 650,
           letterSpacing: "-0.02em",
           lineHeight: 1.2,
@@ -578,7 +587,7 @@ function CatalogHeading({
       <Typography
         color="text.secondary"
         noWrap
-        sx={{ fontSize: tablet ? 14 : 13, minHeight: 20 }}
+        sx={{ fontSize: roomy ? 14 : 13, minHeight: 20 }}
       >
         {countLine}
       </Typography>
@@ -604,11 +613,40 @@ function ChipSplit({ testId }: { testId: string }) {
   );
 }
 
+function DesktopColumnHeader() {
+  return (
+    <Box
+      data-testid="desktop-column-header"
+      aria-hidden
+      sx={{
+        display: "grid",
+        gridTemplateColumns: DESKTOP_ROW_GRID,
+        columnGap: 2,
+        px: 1.5,
+        pb: 0.5,
+        color: "text.secondary",
+        fontSize: 11,
+        fontWeight: 650,
+        letterSpacing: "0.06em",
+        textTransform: "uppercase",
+      }}
+    >
+      <span />
+      <span>Name</span>
+      <span>SKU</span>
+      <span>Category</span>
+      <span>Stock</span>
+      <span style={{ textAlign: "right" }}>Price</span>
+      <span style={{ textAlign: "right" }}>Cost</span>
+    </Box>
+  );
+}
+
 function ChipRail({
-  tablet,
+  wrap,
   children,
 }: {
-  tablet: boolean;
+  wrap: boolean;
   children: ReactNode;
 }) {
   return (
@@ -617,12 +655,12 @@ function ChipRail({
       direction="row"
       useFlexGap
       sx={{
-        flex: tablet ? 1 : undefined,
-        flexWrap: tablet ? "wrap" : "nowrap",
-        overflowX: tablet ? "visible" : "auto",
+        flex: wrap ? 1 : undefined,
+        flexWrap: wrap ? "wrap" : "nowrap",
+        overflowX: wrap ? "visible" : "auto",
         gap: 1,
         minHeight: 32,
-        pb: tablet ? 0 : 0.25,
+        pb: wrap ? 0 : 0.25,
         scrollbarWidth: "none",
         "&::-webkit-scrollbar": { display: "none" },
       }}

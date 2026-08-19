@@ -46,6 +46,24 @@ describe("ConnectionBanner", () => {
     ).toBeInTheDocument();
   });
 
+  it("names the take-home API when /health and the catalog both fail", () => {
+    render(
+      <ConnectionBanner
+        online
+        isError
+        apiUnreachable
+        isFetching={false}
+        hasData
+        onRetry={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByText(
+        "The take-home API is unreachable. The list below is the last good load.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("tells the operator the last catalog is still on screen after a failed refresh", () => {
     render(
       <ConnectionBanner

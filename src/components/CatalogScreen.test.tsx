@@ -108,6 +108,16 @@ describe("CatalogScreen", () => {
     expect(screen.getByText("Showing 1 of 251")).toBeInTheDocument();
   });
 
+  it("adds aligned column headers on the desktop list", () => {
+    renderScreen({ layout: "desktop" });
+    const header = screen.getByTestId("desktop-column-header");
+    expect(header).toHaveTextContent("Name");
+    expect(header).toHaveTextContent("SKU");
+    expect(header).toHaveTextContent("Cost");
+    expect(screen.getByText("BUB-LIME-12")).toBeInTheDocument();
+    expect(screen.queryByTestId("status-dot")).toBeNull();
+  });
+
   it("keeps a long result count on one line", () => {
     renderScreen({
       searchLabel: "sparkling water zero sugar",

@@ -88,6 +88,10 @@ export function nextListPageParam(
   return undefined;
 }
 
+export function healthPath(): string {
+  return "/health";
+}
+
 export function categoriesPath(): string {
   return "/api/v1/categories";
 }

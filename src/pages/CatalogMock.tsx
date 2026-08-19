@@ -1,8 +1,8 @@
 import { Box, Tab, Tabs } from "@mui/material";
 import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { isRateLimitError } from "../api/errors";
-import { fetchCategories, fetchProduct, fetchProductList } from "../api/products";
+import { fetchCategories, fetchHealth, fetchProduct, fetchProductList } from "../api/products";
 import { nextListPageParam } from "../api/query";
 import type { Product } from "../api/types";
 import { CatalogScreen, type SortChoice } from "../components/CatalogScreen";
@@ -11,10 +11,12 @@ import {
   ProductInspectDialog,
   releaseInspectLock,
 } from "../components/ProductInspectDialog";
+import { ProductInspect } from "../components/ProductInspect";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { FEATURED_BRANDS, liveListSearch, sortParams } from "../lib/catalogFilters";
 import {
+  DESKTOP_INSPECT_WIDTH,
   DEVICES,
   HEADING_STYLE,
   IMAGE_TREATMENT,
@@ -37,6 +39,12 @@ export function CatalogMock() {
   const online = useOnlineStatus();
   const { sort: sortField, order } = sortParams(sort);
   const device = DEVICES.find((item) => item.id === deviceId) ?? DEVICES[0];
+
+  const health = useQuery({
+    queryKey: ["health"],
+    queryFn: ({ signal }) => fetchHealth(signal),
+    retry: false,
+  });
 
   const categories = useQuery({
     queryKey: ["categories"],
@@ -106,11 +114,27 @@ export function CatalogMock() {
     hasMore: Boolean(catalog.hasNextPage) && rows.length > 0,
     isLoadingMore: catalog.isFetchingNextPage,
     isRefreshing: catalog.isPlaceholderData,
+    selectedId: openProduct?.id,
     showSkeletons: false,
     onLoadMore: () => {
       void catalog.fetchNextPage();
     },
   };
+
+  const framed = device.layout !== "desktop";
+
+  useEffect(() => {
+    if (framed || !openProduct) {
+      return;
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpenProduct(null);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [framed, openProduct]);
 
   return (
     <Box
@@ -151,18 +175,21 @@ export function CatalogMock() {
             online={online}
             isError={catalog.isError}
             filtersError={categories.isError && !catalog.isError}
+            apiUnreachable={health.isError && catalog.isError}
             isBusy={
               isRateLimitError(catalog.error) ||
               isRateLimitError(categories.error)
             }
             isFetching={
               (catalog.isFetching && !catalog.isFetchingNextPage) ||
-              categories.isFetching
+              categories.isFetching ||
+              health.isFetching
             }
             hasData={catalog.data !== undefined}
             onRetry={() => {
               void catalog.refetch();
               void categories.refetch();
+              void health.refetch();
             }}
           />
         </Box>
@@ -172,7 +199,7 @@ export function CatalogMock() {
         sx={{
           flex: 1,
           minHeight: 0,
-          overflow: "auto",
+          overflow: framed ? "auto" : "hidden",
           px: 2,
           pb: 2,
         }}
@@ -180,59 +207,104 @@ export function CatalogMock() {
         <Box
           sx={{
             display: "flex",
-            justifyContent: "center",
+            justifyContent: framed ? "center" : "stretch",
             width: "100%",
+            height: framed ? "auto" : "100%",
           }}
         >
           <Box
             ref={frameRef}
             data-testid="device-frame"
             data-device={device.id}
-          sx={{
-            width: device.width,
-            height: device.height,
-            position: "relative",
-            bgcolor: "background.default",
-            border: "8px solid #1A1C1B",
-            borderRadius: device.layout === "tablet" ? 3 : 5,
-            overflow: "hidden",
-            boxShadow: "0 16px 40px rgba(16, 24, 40, 0.12)",
-            display: "flex",
-            flexDirection: "column",
-            flexShrink: 0,
-            transition:
-              "width 240ms ease, height 240ms ease, border-radius 240ms ease",
-          }}
-        >
-          <Box
-            sx={{
-              height: device.layout === "tablet" ? 20 : 28,
-              flexShrink: 0,
-              bgcolor: "background.default",
-            }}
-          />
-          <Box sx={{ flex: 1, minHeight: 0 }}>
-            <CatalogScreen layout={device.layout} {...screenProps} />
-          </Box>
-          <Box
-            data-testid="inspect-layer"
-            sx={{
-              position: "absolute",
-              inset: 0,
-              pointerEvents: openProduct ? "auto" : "none",
-            }}
+            sx={
+              framed
+                ? {
+                    width: device.width,
+                    height: device.height,
+                    position: "relative",
+                    bgcolor: "background.default",
+                    border: "8px solid #1A1C1B",
+                    borderRadius: device.layout === "tablet" ? 3 : 5,
+                    overflow: "hidden",
+                    boxShadow: "0 16px 40px rgba(16, 24, 40, 0.12)",
+                    display: "flex",
+                    flexDirection: "column",
+                    flexShrink: 0,
+                    transition:
+                      "width 240ms ease, height 240ms ease, border-radius 240ms ease",
+                  }
+                : {
+                    width: "100%",
+                    height: "100%",
+                    minHeight: 560,
+                    position: "relative",
+                    bgcolor: "background.default",
+                    border: 0,
+                    borderRadius: 2,
+                    overflow: "hidden",
+                    boxShadow: "0 1px 2px rgba(16, 24, 40, 0.06)",
+                    display: "flex",
+                    flexDirection: "row",
+                    flexShrink: 1,
+                  }
+            }
           >
-            <ProductInspectDialog
-              product={detail.data ?? openProduct}
-              fromList={Boolean(openProduct) && detail.isError}
-              kind={device.inspect}
-              onClose={() => {
-                releaseInspectLock(frameRef.current);
-                setOpenProduct(null);
-              }}
-            />
+            {framed ? (
+              <Box
+                sx={{
+                  height: device.layout === "tablet" ? 20 : 28,
+                  flexShrink: 0,
+                  bgcolor: "background.default",
+                }}
+              />
+            ) : null}
+            <Box sx={{ flex: 1, minWidth: 0, minHeight: 0 }}>
+              <CatalogScreen layout={device.layout} {...screenProps} />
+            </Box>
+            {framed ? (
+              <Box
+                data-testid="inspect-layer"
+                sx={{
+                  position: "absolute",
+                  inset: 0,
+                  pointerEvents: openProduct ? "auto" : "none",
+                }}
+              >
+                <ProductInspectDialog
+                  product={detail.data ?? openProduct}
+                  fromList={Boolean(openProduct) && detail.isError}
+                  kind={device.inspect}
+                  onClose={() => {
+                    releaseInspectLock(frameRef.current);
+                    setOpenProduct(null);
+                  }}
+                />
+              </Box>
+            ) : (
+              <Box
+                data-testid="inspect-layer"
+                data-inspect-kind="panel"
+                sx={{
+                  width: openProduct ? DESKTOP_INSPECT_WIDTH : 0,
+                  flexShrink: 0,
+                  overflow: "auto",
+                  borderLeft: openProduct ? "1px solid" : 0,
+                  borderColor: "divider",
+                  pointerEvents: openProduct ? "auto" : "none",
+                  bgcolor: "background.paper",
+                }}
+              >
+                {openProduct ? (
+                  <ProductInspect
+                    product={detail.data ?? openProduct}
+                    fromList={detail.isError}
+                    imageTreatment={IMAGE_TREATMENT}
+                    onClose={() => setOpenProduct(null)}
+                  />
+                ) : null}
+              </Box>
+            )}
           </Box>
-        </Box>
         </Box>
       </Box>
     </Box>

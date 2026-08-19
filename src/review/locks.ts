@@ -85,7 +85,13 @@ export const DEVICES = [
   { id: "iphone-16-pro-max", label: "iPhone 16 Pro Max", width: 440, height: 956, layout: "phone", inspect: "sheet" },
   { id: "ipad-mini", label: "iPad Mini", width: 768, height: 1024, layout: "tablet", inspect: "card" },
   { id: "ipad-pro-13", label: "iPad Pro 13", width: 1032, height: 1376, layout: "tablet", inspect: "card" },
+  { id: "desktop", label: "Desktop", width: 1280, height: 800, layout: "desktop", inspect: "panel" },
 ] as const;
+
+/** Wide list columns: pack, name, SKU, category, stock, price, cost. */
+export const DESKTOP_ROW_GRID =
+  "64px minmax(200px, 2.2fr) 132px minmax(128px, 1.2fr) 96px 72px 72px";
+export const DESKTOP_INSPECT_WIDTH = 400;
 
 export type DeviceId = (typeof DEVICES)[number]["id"];
 export type InspectKind = (typeof DEVICES)[number]["inspect"];

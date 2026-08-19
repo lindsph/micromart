@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { makeProduct } from "../test/factories";
 import {
   categoriesPath,
+  healthPath,
   nextListPageParam,
   productDetailPath,
   productListPath,
@@ -107,5 +108,11 @@ describe("productDetailPath", () => {
 describe("categoriesPath", () => {
   it("hits the allowlisted categories route", () => {
     expect(categoriesPath()).toBe("/api/v1/categories");
+  });
+});
+
+describe("healthPath", () => {
+  it("hits the public health check", () => {
+    expect(healthPath()).toBe("/health");
   });
 });

@@ -12,6 +12,7 @@ vi.mock("../api/products", () => ({
   fetchCategories: vi.fn(),
   fetchProductList: vi.fn(),
   fetchProduct: vi.fn(),
+  fetchHealth: vi.fn(),
 }));
 
 function renderCatalog() {
@@ -35,6 +36,7 @@ function inspectClose() {
 
 describe("CatalogMock", () => {
   beforeEach(() => {
+    vi.mocked(productsApi.fetchHealth).mockResolvedValue({ status: "ok" });
     vi.mocked(productsApi.fetchCategories).mockResolvedValue(["Drink"]);
     vi.mocked(productsApi.fetchProduct).mockImplementation(async (id) =>
       makeProduct({ id, name: "Sparkling Water", stock: 12 }),
@@ -102,6 +104,17 @@ describe("CatalogMock", () => {
       screen.getByText("Couldn't load categories. Search and the list still work."),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Drink" })).toBeNull();
+  });
+
+  it("names the take-home API when /health and the catalog both fail", async () => {
+    vi.mocked(productsApi.fetchHealth).mockRejectedValue(new Error("down"));
+    vi.mocked(productsApi.fetchProductList).mockRejectedValue(new Error("down"));
+    renderCatalog();
+    await waitFor(() =>
+      expect(
+        screen.getByText("The take-home API is unreachable. Retrying automatically."),
+      ).toBeInTheDocument(),
+    );
   });
 
   it("sends the API cursor for the next page", async () => {
@@ -268,14 +281,14 @@ describe("CatalogMock", () => {
     );
     expect(screen.getByTestId("device-frame")).toHaveAttribute("data-device", "ipad-mini");
     expect(screen.getByTestId("device-frame")).toHaveStyle({ width: "768px", height: "1024px" });
-    expect(screen.queryByRole("tab", { name: "Desktop" })).toBeNull();
+    expect(screen.getByRole("tab", { name: "Desktop" })).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "iPhone 14" })).toBeNull();
   });
 
-  it("sizes every device to the current Chrome DevTools CSS viewport", async () => {
+  it("sizes framed devices to the current Chrome DevTools CSS viewport", async () => {
     const user = userEvent.setup();
     renderCatalog();
-    for (const device of DEVICES) {
+    for (const device of DEVICES.filter((item) => item.layout !== "desktop")) {
       await user.click(screen.getByRole("tab", { name: device.label }));
       expect(screen.getByTestId("device-frame")).toHaveAttribute("data-device", device.id);
       expect(screen.getByTestId("device-frame")).toHaveStyle({
@@ -283,6 +296,24 @@ describe("CatalogMock", () => {
         height: `${device.height}px`,
       });
     }
+  });
+
+  it("opens desktop as a wide catalog, not a laptop bezel", async () => {
+    const user = userEvent.setup();
+    renderCatalog();
+    await user.click(screen.getByRole("tab", { name: "Desktop" }));
+    const frame = screen.getByTestId("device-frame");
+    expect(frame).toHaveAttribute("data-device", "desktop");
+    expect(frame).toHaveStyle({ width: "100%", height: "100%" });
+    expect(getComputedStyle(frame).borderWidth).toBe("0px");
+    expect(screen.getByTestId("desktop-column-header")).toBeInTheDocument();
+    expect(screen.getByText("BUB-LIME-12")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    await user.click(within(firstPhone() as HTMLElement).getByRole("button", { name: /Sparkling Water/ }));
+    expect(screen.getByTestId("inspect-layer")).toHaveAttribute("data-inspect-kind", "panel");
+    expect(screen.getByTestId("product-inspect")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("keeps one catalog and the typed search when switching phone frames", async () => {

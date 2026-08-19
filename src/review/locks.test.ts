@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { LOW_STOCK } from "../lib/catalogFilters";
 import {
+  DESKTOP_INSPECT_WIDTH,
+  DESKTOP_ROW_GRID,
   DEVICES,
   DETAIL_STOCK_COPY,
   HEADING_STYLE,
@@ -40,6 +42,10 @@ describe("visual locks", () => {
     expect(IMAGE_TREATMENT).toBe("white-tile");
     expect(HEADING_STYLE).toBe("eyebrow");
     expect(PAGE_SIZE).toBe(20);
+    expect(DESKTOP_ROW_GRID).toBe(
+      "64px minmax(200px, 2.2fr) 132px minmax(128px, 1.2fr) 96px 72px 72px",
+    );
+    expect(DESKTOP_INSPECT_WIDTH).toBe(400);
     expect(LOAD_MORE_ROOT_MARGIN).toBe("800px 0px");
     expect(SEARCH_DEBOUNCE_MS).toBe(300);
     expect(SEARCH_PLACEHOLDER).toBe("Search name, brand, SKU, or tags");
@@ -105,7 +111,7 @@ describe("visual locks", () => {
     });
   });
 
-  it("keeps one-frame device review: phone sheets, tablet cards", () => {
+  it("keeps one-frame device review: phone sheets, tablet cards, desktop panel", () => {
     expect(DEVICES.map((device) => ({
       id: device.id,
       label: device.label,
@@ -119,9 +125,11 @@ describe("visual locks", () => {
       { id: "iphone-16-pro-max", label: "iPhone 16 Pro Max", width: 440, height: 956, layout: "phone", inspect: "sheet" },
       { id: "ipad-mini", label: "iPad Mini", width: 768, height: 1024, layout: "tablet", inspect: "card" },
       { id: "ipad-pro-13", label: "iPad Pro 13", width: 1032, height: 1376, layout: "tablet", inspect: "card" },
+      { id: "desktop", label: "Desktop", width: 1280, height: 800, layout: "desktop", inspect: "panel" },
     ]);
     expect(DEVICES.filter((device) => device.layout === "phone").every((device) => device.inspect === "sheet")).toBe(true);
     expect(DEVICES.filter((device) => device.layout === "tablet").every((device) => device.inspect === "card")).toBe(true);
+    expect(DEVICES.filter((device) => device.layout === "desktop").every((device) => device.inspect === "panel")).toBe(true);
     expect(DEVICES[0]?.id).toBe("se");
   });
 });

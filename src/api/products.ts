@@ -3,11 +3,31 @@ import { ApiError } from "./errors";
 import { parseProduct, parseProductList } from "./parseProduct";
 import {
   categoriesPath,
+  healthPath,
   productDetailPath,
   productListPath,
   type ProductListQuery,
 } from "./query";
 import type { Product, ProductListResponse } from "./types";
+
+export type HealthStatus = { status: "ok" };
+
+function isHealthOk(body: unknown): body is HealthStatus {
+  return (
+    typeof body === "object" &&
+    body !== null &&
+    "status" in body &&
+    (body as { status: unknown }).status === "ok"
+  );
+}
+
+export async function fetchHealth(signal?: AbortSignal): Promise<HealthStatus> {
+  const body = await apiGet<unknown>(healthPath(), signal);
+  if (!isHealthOk(body)) {
+    throw new ApiError("Health response was not valid", undefined, false);
+  }
+  return body;
+}
 
 export async function fetchProductList(
   query: ProductListQuery,

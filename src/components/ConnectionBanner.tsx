@@ -4,6 +4,7 @@ type ConnectionBannerProps = {
   online: boolean;
   isError: boolean;
   filtersError?: boolean;
+  apiUnreachable?: boolean;
   isBusy?: boolean;
   isFetching: boolean;
   hasData: boolean;
@@ -14,6 +15,7 @@ export function ConnectionBanner({
   online,
   isError,
   filtersError = false,
+  apiUnreachable = false,
   isBusy = false,
   isFetching,
   hasData,
@@ -54,11 +56,17 @@ export function ConnectionBanner({
           ? hasData
             ? "Catalog is busy. The list below is the last good load."
             : "Catalog is busy. We'll try again in a moment."
-          : hasData
-            ? "Couldn't refresh. The list below is the last good load."
-            : isFetching
-              ? "Still trying to reach the catalog…"
-              : "Couldn't reach the catalog. Retrying automatically."}
+          : apiUnreachable
+            ? hasData
+              ? "The take-home API is unreachable. The list below is the last good load."
+              : isFetching
+                ? "Still trying to reach the take-home API…"
+                : "The take-home API is unreachable. Retrying automatically."
+            : hasData
+              ? "Couldn't refresh. The list below is the last good load."
+              : isFetching
+                ? "Still trying to reach the catalog…"
+                : "Couldn't reach the catalog. Retrying automatically."}
       </Alert>
     );
   }

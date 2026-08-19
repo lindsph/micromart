@@ -16,6 +16,10 @@ export default defineConfig({
         target: "https://micromart-frontend-takehome.up.railway.app",
         changeOrigin: true,
       },
+      "/health": {
+        target: "https://micromart-frontend-takehome.up.railway.app",
+        changeOrigin: true,
+      },
     },
   },
   preview: {

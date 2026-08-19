@@ -108,7 +108,11 @@ Slow search fails this product.
 
 ## AI usage
 
-Cursor (Grok 4.6) was a thought partner for framing, decisions, and implementation (inspect refresh, Brand menu, 429 cool-down, categories banner, desktop panel, `/health` copy). The candidate made the calls. What we refused is in stretch and more time.
+I used Cursor (Grok 4.6) as a sounding board — talking through the operator job, writing down decisions, and implementing from there. The product choices are mine.
+
+Places it helped: inspect refresh, the short Brand menu, 429 cool-down, the categories banner, the desktop side panel, and `/health` copy when the API is down.
+
+Some ideas we talked through and left for later: barcode and voice without a UPC field, Out / Low / Draft chips the API cannot honor, a 60-brand rail, and a Swagger page in the app. Those are in stretch and more time.
 
 ## What we would improve with more time
 

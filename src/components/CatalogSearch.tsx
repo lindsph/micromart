@@ -7,21 +7,19 @@ type CatalogSearchProps = {
   value: string;
   onValueChange: (value: string) => void;
   placeholder?: string;
-  dense?: boolean;
 };
 
 export function CatalogSearch({
   value,
   onValueChange,
   placeholder = SEARCH_PLACEHOLDER,
-  dense = false,
 }: CatalogSearchProps) {
   const clear = () => onValueChange("");
 
   return (
     <TextField
       fullWidth
-      size={dense ? "small" : "medium"}
+      size="medium"
       value={value}
       onChange={(event) => onValueChange(event.target.value)}
       onKeyDown={(event) => {

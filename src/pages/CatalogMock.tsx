@@ -34,6 +34,7 @@ export function CatalogMock() {
   const [sort, setSort] = useState<SortChoice>("name-asc");
   const [openProduct, setOpenProduct] = useState<Product | null>(null);
   const frameRef = useRef<HTMLDivElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
   const debouncedSearch = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
   const listSearch = liveListSearch(search, debouncedSearch);
   const online = useOnlineStatus();
@@ -91,7 +92,11 @@ export function CatalogMock() {
   const screenProps = {
     search,
     onSearchChange: setSearch,
-    onPick: (product: Product) => setOpenProduct(product),
+    onPick: (product: Product) => {
+      const active = document.activeElement;
+      restoreFocusRef.current = active instanceof HTMLElement ? active : null;
+      setOpenProduct(product);
+    },
     category,
     categories: categories.data ?? [],
     onCategory: setCategory,
@@ -123,13 +128,25 @@ export function CatalogMock() {
 
   const framed = device.layout !== "desktop";
 
+  const closeInspect = () => {
+    const restore = restoreFocusRef.current;
+    restoreFocusRef.current = null;
+    if (framed) {
+      releaseInspectLock(frameRef.current);
+    }
+    setOpenProduct(null);
+    if (!framed) {
+      restore?.focus();
+    }
+  };
+
   useEffect(() => {
     if (framed || !openProduct) {
       return;
     }
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setOpenProduct(null);
+        closeInspect();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -150,6 +167,7 @@ export function CatalogMock() {
         <Tabs
           value={device.id}
           onChange={(_, next: DeviceId) => {
+            restoreFocusRef.current = null;
             releaseInspectLock(frameRef.current);
             setDeviceId(next);
             setOpenProduct(null);
@@ -274,10 +292,7 @@ export function CatalogMock() {
                   product={detail.data ?? openProduct}
                   fromList={Boolean(openProduct) && detail.isError}
                   kind={device.inspect}
-                  onClose={() => {
-                    releaseInspectLock(frameRef.current);
-                    setOpenProduct(null);
-                  }}
+                  onClose={closeInspect}
                 />
               </Box>
             ) : (
@@ -299,7 +314,7 @@ export function CatalogMock() {
                     product={detail.data ?? openProduct}
                     fromList={detail.isError}
                     imageTreatment={IMAGE_TREATMENT}
-                    onClose={() => setOpenProduct(null)}
+                    onClose={closeInspect}
                   />
                 ) : null}
               </Box>

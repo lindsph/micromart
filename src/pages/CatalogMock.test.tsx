@@ -310,10 +310,17 @@ describe("CatalogMock", () => {
     expect(screen.getByText("BUB-LIME-12")).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).toBeNull();
 
-    await user.click(within(firstPhone() as HTMLElement).getByRole("button", { name: /Sparkling Water/ }));
+    const row = within(firstPhone() as HTMLElement).getByRole("button", {
+      name: /Sparkling Water/,
+    });
+    await user.click(row);
     expect(screen.getByTestId("inspect-layer")).toHaveAttribute("data-inspect-kind", "panel");
     expect(screen.getByTestId("product-inspect")).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).toBeNull();
+    await waitFor(() => expect(inspectClose()).toHaveFocus());
+    await user.click(inspectClose());
+    await waitFor(() => expect(screen.queryByTestId("product-inspect")).toBeNull());
+    expect(row).toHaveFocus();
   });
 
   it("keeps one catalog and the typed search when switching phone frames", async () => {

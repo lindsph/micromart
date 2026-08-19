@@ -1,0 +1,39 @@
+# Dependencies and build
+node_modules
+dist
+dist-ssr
+*.tsbuildinfo
+
+# Local env and Vite
+*.local
+.env
+.env.*
+!.env.example
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Test and coverage output
+coverage
+.nyc_output
+.vitest
+
+# Editor and agent tooling
+.cursor
+.vscode/*
+!.vscode/extensions.json
+.idea
+.zed
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
